@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block header %}Заявки на исполнение{% endblock %}
+
+{% block content %}
+<h1>Заявки</h1>
+	<ul>
+	{% for todo in object_list %}
+		<li>{% include "todo_item.html" %}</li>
+		{% empty %}
+		<li>Заявок нет.</li>
+	{% endfor %}
+	</ul>
+{% endblock %}

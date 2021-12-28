@@ -1,0 +1,19 @@
+<div class="notes__item js-note-item" data-pk="{{ note.pk }}" data-project-pk="{{ note.project.pk }}">
+    <div class="notes__item-title">
+        <div class="notes__item-priority {{ note.priority_code }}"></div>
+        <span>{{ todo.inquiry_title }}</span>
+        <div class="notes__item-notification">
+            {% if note.comments_count %}
+                <div class="message js-note-messages-count">{{ note.comments_count }}</div>
+            {% endif %}
+            {% if note.status == notes_status_new %}
+                <div class="new">new!</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="todos__item-block">
+        <div class="todo__item-creator">{{ todo.inquiry_creator }}</div>
+        <div class="todo__item-priority">{{ todo.todo_priority }}</div>
+		<div class="todo__item-status">{{ todo.todo_status }}</div>
+    </div>
+</div>
