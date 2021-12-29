@@ -1,5 +1,4 @@
 from django.urls import path, include
-from django.conf.urls import url
 from django.urls.conf import re_path
 from django.views.generic import base
 from rest_framework import routers
