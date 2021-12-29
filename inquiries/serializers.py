@@ -118,9 +118,11 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         instance.announcement_auto_invisible_date = validated_data.get('announcement_auto_invisible_date', instance.announcement_auto_invisible_date)
         instance.save()
         return instance
-
+        
 
 class PollSerializer(serializers.ModelSerializer):
+    vote_options = PrimaryKeyRelatedField(source='voteoption.vote_option_text', read_only=True, many=True)
+
     class Meta:
         model = Poll
         fields = '__all__'
