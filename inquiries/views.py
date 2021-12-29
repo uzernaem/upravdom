@@ -113,6 +113,31 @@ def announcement_list(request):
 
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([permissions.IsAuthenticated])
+def poll_list(request):
+
+    if request.method == 'GET':
+
+        polls = Poll.objects.all()
+        title = request.GET.get('inquiry_title', None)
+        if title is not None:
+            polls = polls.filter(title__icontains=title)
+        
+        polls_serializer = PollSerializer(polls, many=True)
+        return JsonResponse(polls_serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        polls_data = JSONParser().parse(request)
+        polls_data['inquiry_creator'] = request.user.id
+        polls_data['poll_deadline'] = polls_data['poll_deadline'][0:10]
+        polls_serializer = PollSerializer(data=polls_data)
+        if polls_serializer.is_valid():
+            polls_serializer.save()
+            return JsonResponse(polls_serializer.data, status=status.HTTP_201_CREATED) 
+        return JsonResponse(polls_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([permissions.IsAuthenticated])
 def notification_list(request):
 
     if request.method == 'GET':
@@ -239,7 +264,7 @@ def todo_detail(request, pk):
         return data 
 
     elif request.method == 'PUT': 
-        if todo.inquiry_creator == request.user:
+        if ((todo.inquiry_creator==request.user) | (request.user.profile.is_manager)):
             todo_data = JSONParser().parse(request)
             todo_serializer = ToDoUpdateSerializer(todo, data=todo_data) 
             if todo_serializer.is_valid(): 
