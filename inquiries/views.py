@@ -1,4 +1,5 @@
 from datetime import datetime
+from django.utils import timezone
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 from django.shortcuts import render
@@ -6,13 +7,10 @@ from django.http.response import HttpResponse, JsonResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
-
 from rest_framework.parsers import JSONParser 
-
-from inquiries.serializers import UserSerializer, AnnouncementSerializer, ToDoSerializer, ToDoUpdateSerializer, PollSerializer, NotificationSerializer, \
+from inquiries.serializers import UserSerializer, AnnouncementSerializer, ToDoSerializer, PollSerializer, NotificationSerializer, \
     CommentSerializer, VoteOptionSerializer, VoteSerializer, ProfileSerializer, ToDoCategorySerializer
 from inquiries.models import Announcement, ToDo, Poll, Notification, Property, Comment, VoteOption, Vote, Profile, ToDoCategory, Inquiry
-
 from django.contrib.auth.models import User
 
 # Create your views here.
@@ -20,17 +18,21 @@ from django.contrib.auth.models import User
 @permission_classes([permissions.IsAuthenticated])
 def user_list(request):
     if request.method == 'GET':
-        users = User.objects.all()
-        users_serializer = UserSerializer(users, many=True)
-        return JsonResponse(users_serializer.data, safe=False)
+        if request.user.profile.is_manager:
+            users = User.objects.all()
+            users_serializer = UserSerializer(users, many=True)
+            return JsonResponse(users_serializer.data, safe=False)    
+        return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
 
     elif request.method == 'POST':
-        user_data = JSONParser().parse(request)
-        users_serializer = UserSerializer(data=user_data)
-        if users_serializer.is_valid():
-            users_serializer.save()
-            return JsonResponse(users_serializer.data, status=status.HTTP_201_CREATED) 
-        return JsonResponse(users_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if request.user.profile.is_manager:
+            user_data = JSONParser().parse(request)
+            users_serializer = UserSerializer(data=user_data)
+            if users_serializer.is_valid():
+                users_serializer.save()
+                return JsonResponse(users_serializer.data, status=status.HTTP_201_CREATED) 
+            return JsonResponse(users_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
 
 
 @api_view(['GET'])
@@ -68,22 +70,26 @@ def todo_list(request):
         return JsonResponse(todo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST', 'DELETE'])
+@api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def comment_list(request, inquiry_id):
-    if request.method == 'GET':
-        comments = Comment.objects.filter(inquiry_id=inquiry_id)        
-        comments_serializer = CommentSerializer(comments, many=True)
-        return JsonResponse(comments_serializer.data, safe=False)
 
-    elif request.method == 'POST':
+    if request.method == 'POST':
         comment_data = JSONParser().parse(request)
         comment_data['comment_creator'] = request.user.id
-        comment_serializer = CommentSerializer(data=comment_data)        
-        if comment_serializer.is_valid():
-            comment_serializer.save()
-            return JsonResponse(comment_serializer.data, status=status.HTTP_201_CREATED) 
-        return JsonResponse(comment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        comment_serializer = CommentSerializer(data=comment_data) 
+        if Announcement.objects.filter(inquiry_id=inquiry_id).exists():
+            if comment_serializer.is_valid():
+                comment_serializer.save()
+                return JsonResponse(comment_serializer.data, status=status.HTTP_201_CREATED)            
+            return JsonResponse(comment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)      
+        elif ToDo.objects.filter(inquiry_id=inquiry_id).exists():
+            if ((ToDo.objects.get(inquiry_id=inquiry_id).inquiry_creator.id==request.user.id) | request.user.profile.is_manager):
+                if comment_serializer.is_valid():
+                    comment_serializer.save()
+                    return JsonResponse(comment_serializer.data, status=status.HTTP_201_CREATED)
+                return JsonResponse(comment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
 
 
 @api_view(['GET', 'POST', 'DELETE'])
@@ -92,7 +98,9 @@ def announcement_list(request):
 
     if request.method == 'GET':
 
-        announcements = Announcement.objects.filter(Q(announcement_is_visible = True, announcement_auto_invisible_date__gt=datetime.today().date()) | Q(inquiry_creator=request.user))
+        announcements = Announcement.objects.filter(
+            Q(announcement_is_visible = True, announcement_auto_invisible_date__gt=datetime.today().date()) | 
+            Q(inquiry_creator=request.user))
         title = request.GET.get('inquiry_title', None)
         if title is not None:
             announcements = announcements.filter(title__icontains=title)
@@ -141,7 +149,6 @@ def poll_list(request):
 def notification_list(request):
 
     if request.method == 'GET':
-
         notifications = Notification.objects.filter(notification_recipient=request.user)
         title = request.GET.get('inquiry_title', None)
         if title is not None:
@@ -173,16 +180,18 @@ def announcement_detail(request, pk):
         data = JsonResponse(announcement_serializer.data)
         return data 
 
+
     elif request.method == 'PUT': 
         if announcement.inquiry_creator == request.user:
-            announcement_data = JSONParser().parse(request)        
-            announcement_data['inquiry_creator'] = request.user.id
-            announcement_serializer = AnnouncementSerializer(announcement, data=announcement_data) 
-            if announcement_serializer.is_valid(): 
-                announcement_serializer.save() 
-                return JsonResponse(announcement_serializer.data) 
-            return JsonResponse(announcement_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            announcement_data = JSONParser().parse(request)
+            print(announcement_data)
+            Announcement.objects.filter(pk=pk).update(
+                announcement_is_visible = announcement_data['announcement_is_visible'],
+                announcement_auto_invisible_date = announcement_data['announcement_auto_invisible_date'],
+                inquiry_updated_at = timezone.now())
+            return JsonResponse({'message': 'Статус публикации изменён'}, status=status.HTTP_200_OK)
         return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
 
     elif request.method == 'DELETE':
         if announcement.inquiry_creator == request.user:
@@ -202,19 +211,48 @@ def notification_detail(request, pk):
     if request.method == 'GET': 
         notification_serializer = NotificationSerializer(notification)
         data = JsonResponse(notification_serializer.data)
-        return data 
+        return data
 
     elif request.method == 'PUT': 
         if notification.notification_recipient == request.user:
-            notification_data = JSONParser().parse(request)        
-            notification_data['inquiry_creator'] = request.user.id
-            notification_data['notification_is_read'] = True
-            notification_serializer = NotificationSerializer(notification, data=notification_data) 
-            if notification_serializer.is_valid(): 
-                notification_serializer.save() 
-                return JsonResponse(notification_serializer.data) 
-            return JsonResponse(notification_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            Notification.objects.filter(pk=pk).update(
+                notification_is_read = True,
+                inquiry_updated_at = timezone.now())
+            return JsonResponse({'message': 'Уведомление прочтено получателем'}, status=status.HTTP_200_OK)
         return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
+ 
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([permissions.IsAuthenticated])
+def todo_detail(request, pk):
+    try:
+        todo = ToDo.objects.get(pk=pk)
+    except ToDo.DoesNotExist:
+        return JsonResponse({'message': 'Заявка не существует'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        if ((todo.inquiry_creator==request.user) | (request.user.profile.is_manager)):
+            todo_serializer = ToDoSerializer(todo)
+            data = JsonResponse(todo_serializer.data)
+            return data
+        return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
+    elif request.method == 'PUT':
+        if (((todo.todo_status == 'n') | (todo.todo_status == 'w')) &
+         ((todo.todo.todo_assigned_to == request.user) | (todo.todo.todo_assigned_to is None)) & (request.user.profile.is_manager)):
+            todo_data = JSONParser().parse(request)
+            ToDo.objects.filter(pk=pk).update(
+                todo_assigned_to = todo_data['todo_assigned_to'],
+                todo_status = todo_data['todo_status'],
+                inquiry_updated_at = timezone.now())
+            return JsonResponse({'message': 'Статус заявки и исполнитель обновлены'}, status=status.HTTP_200_OK)
+        elif ((todo.todo_status == 'r') & (todo.inquiry_creator==request.user)):
+            todo_data = JSONParser().parse(request)
+            ToDo.objects.filter(pk=pk).update(todo_status = todo_data['todo_status'],
+                inquiry_updated_at = timezone.now())
+            return JsonResponse({'message': 'Статус заявки обновлён'}, status=status.HTTP_200_OK)
+        return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
 
 # @api_view(['GET', 'POST', 'DELETE'])
 # @permission_classes([permissions.IsAuthenticated])
@@ -246,32 +284,6 @@ def notification_detail(request, pk):
 #             todocategory_serializer.save() 
 #             return JsonResponse(todocategory_serializer.data) 
 #         return JsonResponse(todocategory_serializer.errors, status=status.HTTP_400_BAD_REQUEST) 
- 
- 
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([permissions.IsAuthenticated])
-def todo_detail(request, pk):
-    try: 
-        todo = ToDo.objects.get(pk=pk)
-        # comments = Comment.objects.filter(inquiry=pk)
-    except ToDo.DoesNotExist: 
-        return JsonResponse({'message': 'Заявка не существует'}, status=status.HTTP_404_NOT_FOUND) 
-
-    if request.method == 'GET': 
-        todo_serializer = ToDoSerializer(todo)
-        # comments_serializer = CommentSerializer(comments, many=True) 
-        data = JsonResponse(todo_serializer.data)
-        return data 
-
-    elif request.method == 'PUT': 
-        if ((todo.inquiry_creator==request.user) | (request.user.profile.is_manager)):
-            todo_data = JSONParser().parse(request)
-            todo_serializer = ToDoUpdateSerializer(todo, data=todo_data) 
-            if todo_serializer.is_valid(): 
-                todo_serializer.save() 
-                return JsonResponse(todo_serializer.data) 
-            return JsonResponse(todo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)        
-        return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN) 
 
 
 # class ToDoViewSet(viewsets.ModelViewSet):

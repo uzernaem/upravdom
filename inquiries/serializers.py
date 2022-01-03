@@ -18,7 +18,6 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
             representation = super(CommentSerializer, self).to_representation(instance)
-            representation['comment_created_at'] = instance.comment_created_at.timestamp()*1000
             representation['comment_creator'] = UserSerializer(instance.comment_creator).data
             return representation
 
@@ -27,12 +26,10 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
-    # user = self.context['request'].user
         comment = Comment(
            inquiry=validated_data['inquiry'],
            comment_text=validated_data['comment_text'],
-           comment_creator=validated_data['comment_creator'],
-           comment_created_at=validated_data['comment_created_at']
+           comment_creator=validated_data['comment_creator']
         )
         comment.save()
         return comment
@@ -55,7 +52,6 @@ class ToDoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
-        # user = self.context['request'].user
         todo = ToDo(
             inquiry_creator=validated_data['inquiry_creator'],
             inquiry_title=validated_data['inquiry_title'],
@@ -66,17 +62,18 @@ class ToDoSerializer(serializers.ModelSerializer):
         return todo
 
 
-class ToDoUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ToDo
-        fields = 'inquiry_updated_at', 'todo_assigned_to', 'todo_status'
+# class ToDoUpdateSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = ToDo
+#         fields = 'inquiry_updated_at', 'todo_assigned_to', 'todo_status'
 
-    def update(self, instance, validated_data):
-        instance.inquiry_updated_at = validated_data.get('inquiry_updated_at', instance.inquiry_updated_at)
-        instance.todo_assigned_to = validated_data.get('todo_assigned_to', instance.todo_assigned_to)
-        instance.todo_status = validated_data.get('todo_status', instance.todo_status)
-        instance.save()
-        return instance
+#     def update(self, instance, validated_data):
+#         instance.inquiry_updated_at = validated_data.get('inquiry_updated_at', instance.inquiry_updated_at)
+#         instance.todo_assigned_to = validated_data.get('todo_assigned_to', instance.todo_assigned_to)
+#         instance.todo_status = validated_data.get('todo_status', instance.todo_status)
+#         print('used')
+#         instance.save()
+#         return instance
 
 
 class ToDoCategorySerializer(serializers.ModelSerializer):
@@ -111,13 +108,12 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         announcement.save()
         return announcement
 
-    def update(self, instance, validated_data):
-        instance.inquiry_updated_at = validated_data.get('inquiry_updated_at', instance.inquiry_updated_at)
-        # instance.inquiry_is_done = validated_data.get('inquiry_is_done', instance.inquiry_is_done)
-        instance.announcement_is_visible = validated_data.get('announcement_is_visible', instance.announcement_is_visible)
-        instance.announcement_auto_invisible_date = validated_data.get('announcement_auto_invisible_date', instance.announcement_auto_invisible_date)
-        instance.save()
-        return instance
+    # def update(self, instance, validated_data):
+    #     instance.inquiry_updated_at = validated_data.get('inquiry_updated_at', instance.inquiry_updated_at)
+    #     instance.announcement_is_visible = validated_data.get('announcement_is_visible', instance.announcement_is_visible)
+    #     instance.announcement_auto_invisible_date = validated_data.get('announcement_auto_invisible_date', instance.announcement_auto_invisible_date)
+    #     instance.save()
+    #     return instance
         
 
 class PollSerializer(serializers.ModelSerializer):
@@ -166,10 +162,8 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
-        # user = self.context['request'].user
         notification = Notification(
             inquiry_title=validated_data['inquiry_title'],
-            # inquiry_creator=user,
             inquiry_text=validated_data['inquiry_text'],
             notification_recipient=validated_data['notification_recipient'],
             notification_category=validated_data['notification_category']
@@ -177,12 +171,12 @@ class NotificationSerializer(serializers.ModelSerializer):
         notification.save()
         return notification
 
-    def update(self, instance, validated_data):
-        instance.inquiry_updated_at = validated_data.get('inquiry_updated_at', instance.inquiry_updated_at)
-        # instance.inquiry_is_done = validated_data.get('inquiry_is_done', instance.inquiry_is_done)
-        instance.notification_is_read = validated_data.get('notification_is_read', instance.notification_is_read)
-        instance.save()
-        return instance
+    # def update(self, instance, validated_data):
+    #     instance.inquiry_updated_at = validated_data.get('inquiry_updated_at', instance.inquiry_updated_at)
+    #     # instance.inquiry_is_done = validated_data.get('inquiry_is_done', instance.inquiry_is_done)
+    #     instance.notification_is_read = validated_data.get('notification_is_read', instance.notification_is_read)
+    #     instance.save()
+    #     return instance
 
 
 class PropertySerializer(serializers.ModelSerializer):

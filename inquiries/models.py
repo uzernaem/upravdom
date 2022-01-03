@@ -17,8 +17,7 @@ class Inquiry(models.Model):
     inquiry_text = models.TextField(max_length=4096, help_text='Текст заявки', blank=False)
     inquiry_creator = models.ForeignKey(User, help_text='Создатель заявки', on_delete=models.SET_NULL, null=True)
     inquiry_created_at = models.DateTimeField(auto_now_add=True, help_text='Дата создания заявки')
-    inquiry_updated_at = models.DateTimeField(help_text='Дата обновления заявки', null=True)
-    # inquiry_is_done = models.BooleanField(blank=True, default=False, help_text='Признак завершения заявки')
+    inquiry_updated_at = models.DateTimeField(auto_now_add=True, help_text='Дата обновления заявки')
 
 
 class InquiryForm(ModelForm):
@@ -212,8 +211,7 @@ class Comment(models.Model):
     inquiry = models.ForeignKey('Inquiry', on_delete=models.CASCADE, blank=False, null=False, help_text='Заявка')
     comment_text = models.TextField(max_length=4096, help_text='Текст комментария', blank=False, null=False)
     comment_creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, help_text='Автор комментария')
-    # comment_created_at = models.DateTimeField(auto_now_add=True, help_text='Дата и время комментария')    
-    comment_created_at = models.DateTimeField(help_text='Дата и время комментария')
+    comment_created_at = models.DateTimeField(auto_now_add=True, help_text='Дата и время комментария')
 
 
 class VoteOption(models.Model):

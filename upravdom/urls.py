@@ -34,5 +34,5 @@ urlpatterns = [
 
 urlpatterns += [
     # path(r'^', include('inquiries.urls')),
-    path('inquiries/', include('inquiries.urls')),
+    path('', include('inquiries.urls')),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

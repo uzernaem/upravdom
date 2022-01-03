@@ -24,16 +24,14 @@ from .views import todo_list, todo_detail
 
 urlpatterns = [
     path('', include(router.urls)),    
-    re_path(r'^api/user$', get_user),
-    re_path(r'^api/users$', user_list),
-    re_path(r'^api/todos$', todo_list),
-    re_path(r'^api/announcements$', announcement_list),
-    re_path(r'^api/notifications$', notification_list),
-    re_path(r'^api/polls$', poll_list),
-    re_path(r'^api/announcements/(?P<pk>[0-9]+)$', announcement_detail),
-    re_path(r'^api/notifications/(?P<pk>[0-9]+)$', notification_detail),
-    re_path(r'^api/todos/(?P<pk>[0-9]+)$', todo_detail),
-    re_path(r'^api/comments/(?P<inquiry_id>[0-9]+)$', comment_list),
-    # re_path(r'^api/todocategories$', todocategory_list),
-    # re_path(r'^api/todocategories/(?P<pk>[0-9]+)$', todocategory_detail)
+    re_path(r'^user$', get_user),
+    re_path(r'^users$', user_list),
+    re_path(r'^todos$', todo_list),
+    re_path(r'^todos/(?P<pk>[0-9]+)$', todo_detail),
+    re_path(r'^announcements$', announcement_list),
+    re_path(r'^announcements/(?P<pk>[0-9]+)$', announcement_detail),
+    re_path(r'^notifications$', notification_list),
+    re_path(r'^notifications/(?P<pk>[0-9]+)$', notification_detail),
+    re_path(r'^comments/(?P<inquiry_id>[0-9]+)$', comment_list),
+    re_path(r'^polls$', poll_list),
 ]
