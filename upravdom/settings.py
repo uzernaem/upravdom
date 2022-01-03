@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-#s=!$mag*6cmi8$!b9_^(1cy2u5ia^hm-izh_7h3%qv7sw^&xl
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['upravdom-23b8c.ondigitalocean.app', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['upravdom-23b8c.ondigitalocean.app']
 
 
 # Application definition
