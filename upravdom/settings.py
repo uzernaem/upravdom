@@ -103,7 +103,7 @@ WSGI_APPLICATION = 'upravdom.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
-DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "False") == "True"
+DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "False")
 
 if DEVELOPMENT_MODE is True:
     DATABASES = {
