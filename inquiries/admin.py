@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Profile #, ToDo, Poll, Announcement, Notification, Comment, VoteOption, Vote, Property, Ownership, Image
+from .models import Profile, ToDo, Poll, Announcement, Notification, Comment, VoteOption, Vote, Property, Ownership, Image
 
 # Register your models here.
 admin.site.register(Profile)
