@@ -20,6 +20,15 @@ class Inquiry(models.Model):
     inquiry_updated_at = models.DateTimeField(auto_now_add=True, help_text='Дата обновления заявки')
 
 
+class Attachment(models.Model):
+    attachment_id = models.AutoField(primary_key=True, help_text='Идентификатор вложения', blank=False)
+    inquiry = models.ForeignKey('Inquiry', on_delete=models.CASCADE, blank=False, null=False, help_text='Заявка')
+    file = models.FileField(blank=False, null=False)
+
+    def __str__(self):
+        return self.file.name
+
+
 class InquiryForm(ModelForm):
     class Meta:
         model = Inquiry
@@ -111,7 +120,7 @@ class Image(models.Model):
 
 class Poll(Inquiry):
     """Модель голосования"""
-    poll_open = models.BooleanField(blank=True, default=False, help_text='Открытое голосование')
+    # poll_open = models.BooleanField(blank=True, default=False, help_text='Открытое голосование')
     poll_preliminary_results = models.BooleanField(blank=True, default=False, help_text='Предварительные результаты')
     poll_deadline = models.DateTimeField(null=False, help_text='Дата завершения голосования')
     # poll_variants = models.JSONField(help_text='Варианты голосования')
@@ -236,19 +245,23 @@ class Vote(models.Model):
 class Profile(models.Model):
     """Профиль пользователя системы"""
     user = models.OneToOneField(User, primary_key=True, on_delete=models.CASCADE, blank=False, help_text='Пользователь')
-    # first_name = models.CharField(max_length=100, help_text='Имя пользователя')
-    # last_name = models.CharField(max_length=100, help_text='Фамилия пользователя')
-    # email = models.EmailField(max_length=150, help_text='Адрес электронной почты')
     phone_number = models.CharField(max_length=100, help_text='Номер телефона')
     photo = models.BinaryField(null=True, help_text='Фотография пользователя')
     is_manager = models.BooleanField(default=False, blank=False, help_text='Признак управляющего')
-    # is_blocked = models.BooleanField(default=False, blank=False, help_text='Признак блокировки')
 
     class Meta:
         ordering = ['is_manager', 'user']
 
     # def __str__(self):
     #     return {self.user.username}
+
+
+class Info(models.Model):
+    info_title = models.CharField(max_length=256, help_text='Заголовок информационного сообщения', blank=False)
+    info_text = models.TextField(max_length=4096, help_text='Текст информационного сообщения', blank=False, null=False)
+
+    def __str__(self):
+         return str(self.info_title)
 
 
 @receiver(post_save, sender=User)

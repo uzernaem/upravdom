@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.fields import ReadOnlyField
 from rest_framework.relations import PrimaryKeyRelatedField
-from .models import Announcement, ToDo, Poll, Notification, Property, Comment, ToDoCategory, VoteOption, Vote, Profile
+from .models import Announcement, Attachment, ToDo, Poll, Notification, Property, Comment, ToDoCategory, VoteOption, Vote, Profile, Info
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -61,6 +61,20 @@ class ToDoSerializer(serializers.ModelSerializer):
         todo.save()
         return todo
 
+class ToDoListSerializer(serializers.ModelSerializer):
+    todo_category_name = serializers.CharField(read_only=True, source='get_todo_category_display')
+    todo_status_name = serializers.CharField(read_only=True, source='get_todo_status_display')
+    todo_priority_name = serializers.CharField(read_only=True, source='get_todo_priority_display')
+
+    def to_representation(self, instance):
+            representation = super(ToDoListSerializer, self).to_representation(instance)
+            representation['inquiry_creator'] = UserSerializer(instance.inquiry_creator).data
+            return representation
+
+    class Meta:
+        model = ToDo
+        fields = '__all__'
+
 
 # class ToDoUpdateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -108,28 +122,69 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         announcement.save()
         return announcement
 
+
+class AnnouncementListSerializer(serializers.ModelSerializer):
+    announcement_category_name = serializers.CharField(read_only=True, source='get_announcement_category_display')
+    
+    class Meta:
+        model = Announcement
+        fields = '__all__'
+    
+
+    def to_representation(self, instance):
+            representation = super(AnnouncementListSerializer, self).to_representation(instance)
+            representation['inquiry_creator'] = UserSerializer(instance.inquiry_creator).data
+            return representation
+
+
     # def update(self, instance, validated_data):
     #     instance.inquiry_updated_at = validated_data.get('inquiry_updated_at', instance.inquiry_updated_at)
     #     instance.announcement_is_visible = validated_data.get('announcement_is_visible', instance.announcement_is_visible)
     #     instance.announcement_auto_invisible_date = validated_data.get('announcement_auto_invisible_date', instance.announcement_auto_invisible_date)
     #     instance.save()
     #     return instance
-        
+
+class VoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vote
+        fields = '__all__'
+
+
+class VoteOptionSerializer(serializers.ModelSerializer):    
+    votes = VoteSerializer(read_only=True, source='vote_set', many=True)
+
+    class Meta:
+        model = VoteOption
+        fields = '__all__'
+
+    def create(self, validated_data):
+        voteoption = VoteOption(
+           vote_option_text=validated_data['vote_option_text'],
+           poll=validated_data['poll']
+        )
+        voteoption.save()
+        return voteoption
+
 
 class PollSerializer(serializers.ModelSerializer):
-    vote_options = PrimaryKeyRelatedField(source='voteoption.vote_option_text', read_only=True, many=True)
+    vote_options = VoteOptionSerializer(read_only=True, source='voteoption_set', many=True)
 
     class Meta:
         model = Poll
         fields = '__all__'
 
+    def to_representation(self, instance):
+            representation = super(PollSerializer, self).to_representation(instance)
+            representation['inquiry_creator'] = UserSerializer(instance.inquiry_creator).data
+            return representation
+
     def create(self, validated_data):
-        user = self.context['request'].user
+        # user = self.context['request'].user
         poll = Poll(
-            inquiry_title=validated_data['inquiry_title'],
-            inquiry_creator=user,
+            inquiry_title=validated_data['inquiry_title'],            
+            inquiry_creator=validated_data['inquiry_creator'],
             inquiry_text=validated_data['inquiry_text'],
-            poll_open=validated_data['poll_open'],
+            # poll_open=validated_data['poll_open'],
             poll_preliminary_results=validated_data['poll_preliminary_results'],
             poll_deadline=validated_data['poll_deadline']
         )
@@ -141,18 +196,6 @@ class PollSerializer(serializers.ModelSerializer):
         # instance.inquiry_is_done = validated_data.get('inquiry_is_done', instance.inquiry_is_done)
         instance.save()
         return instance
-
-
-class VoteOptionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = VoteOption
-        fields = '__all__'
-
-
-class VoteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Vote
-        fields = '__all__'
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -185,7 +228,18 @@ class PropertySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class InfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Info
+        fields = '__all__'
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = '__all__'
+
+class FileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Attachment
+        fields = "__all__"

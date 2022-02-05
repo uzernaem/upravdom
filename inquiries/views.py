@@ -7,10 +7,11 @@ from django.http.response import HttpResponse, JsonResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
-from rest_framework.parsers import JSONParser 
+from rest_framework.parsers import JSONParser, FileUploadParser
 from inquiries.serializers import UserSerializer, AnnouncementSerializer, ToDoSerializer, PollSerializer, NotificationSerializer, \
-    CommentSerializer, VoteOptionSerializer, VoteSerializer, ProfileSerializer, ToDoCategorySerializer
-from inquiries.models import Announcement, ToDo, Poll, Notification, Property, Comment, VoteOption, Vote, Profile, ToDoCategory, Inquiry
+    CommentSerializer, VoteOptionSerializer, VoteSerializer, ProfileSerializer, ToDoCategorySerializer, InfoSerializer, ToDoListSerializer, AnnouncementListSerializer, \
+    FileSerializer
+from inquiries.models import Announcement, ToDo, Poll, Notification, Info, Property, Comment, VoteOption, Vote, Profile, ToDoCategory, Inquiry
 from django.contrib.auth.models import User
 
 # Create your views here.
@@ -57,7 +58,8 @@ def todo_list(request):
         if title is not None:
             todos = todos.filter(title__icontains=title)
         
-        todos_serializer = ToDoSerializer(todos, many=True)
+        print(todos)
+        todos_serializer = ToDoListSerializer(todos, many=True)
         return JsonResponse(todos_serializer.data, safe=False)
 
     elif request.method == 'POST':
@@ -68,6 +70,46 @@ def todo_list(request):
             todo_serializer.save()
             return JsonResponse(todo_serializer.data, status=status.HTTP_201_CREATED) 
         return JsonResponse(todo_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([permissions.IsAuthenticated])
+def voteoption_list(request):
+
+    if request.method == 'GET':
+        voteoptions = VoteOption.objects.all()
+        voteoption_serializer = VoteOptionSerializer(voteoptions, many=True)
+        return JsonResponse(voteoption_serializer.data, safe=False)
+
+    if request.method == 'POST':
+        voteoption_data = JSONParser().parse(request)
+        voteoption_serializer = VoteOptionSerializer(data=voteoption_data, many=True)
+        if voteoption_serializer.is_valid():
+            voteoption_serializer.save()
+            return JsonResponse(voteoption_serializer.data, status=status.HTTP_201_CREATED, safe=False)
+        return JsonResponse(voteoption_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def post_vote(request):
+
+    if request.method == 'POST':
+        vote_data = JSONParser().parse(request)
+        vote_data['voter'] = request.user.id
+
+        vote_options = VoteOption.objects.get(pk=vote_data['selected_option']).poll.voteoption_set.all()
+        for option in vote_options:
+            if option.vote_set.values().filter(voter_id=request.user.id):
+                return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
+        vote_serializer = VoteSerializer(data=vote_data)
+        if vote_serializer.is_valid():
+            vote_serializer.save()
+            return JsonResponse(vote_serializer.data, status=status.HTTP_201_CREATED)
+        return JsonResponse(vote_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
 
 
 @api_view(['POST'])
@@ -81,8 +123,8 @@ def comment_list(request, inquiry_id):
         if Announcement.objects.filter(inquiry_id=inquiry_id).exists():
             if comment_serializer.is_valid():
                 comment_serializer.save()
-                return JsonResponse(comment_serializer.data, status=status.HTTP_201_CREATED)            
-            return JsonResponse(comment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)      
+                return JsonResponse(comment_serializer.data, status=status.HTTP_201_CREATED)
+            return JsonResponse(comment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         elif ToDo.objects.filter(inquiry_id=inquiry_id).exists():
             if ((ToDo.objects.get(inquiry_id=inquiry_id).inquiry_creator.id==request.user.id) | request.user.profile.is_manager):
                 if comment_serializer.is_valid():
@@ -105,7 +147,7 @@ def announcement_list(request):
         if title is not None:
             announcements = announcements.filter(title__icontains=title)
         
-        announcements_serializer = AnnouncementSerializer(announcements, many=True)
+        announcements_serializer = AnnouncementListSerializer(announcements, many=True)
         return JsonResponse(announcements_serializer.data, safe=False)
 
     elif request.method == 'POST':
@@ -136,10 +178,15 @@ def poll_list(request):
     elif request.method == 'POST':
         polls_data = JSONParser().parse(request)
         polls_data['inquiry_creator'] = request.user.id
-        polls_data['poll_deadline'] = polls_data['poll_deadline'][0:10]
         polls_serializer = PollSerializer(data=polls_data)
+        print(polls_data)
         if polls_serializer.is_valid():
-            polls_serializer.save()
+            poll = polls_serializer.save()
+            for option in polls_data['vote_options']:
+                option['poll'] = poll.inquiry_id
+            vote_options = VoteOptionSerializer(data=polls_data['vote_options'], many=True)
+            if vote_options.is_valid():
+                vote_options.save()
             return JsonResponse(polls_serializer.data, status=status.HTTP_201_CREATED) 
         return JsonResponse(polls_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -165,6 +212,18 @@ def notification_list(request):
             notifications_serializer.save()
             return JsonResponse(notifications_serializer.data, status=status.HTTP_201_CREATED) 
         return JsonResponse(notifications_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def info_panel(request):
+
+    if request.method == 'GET':
+        infos = Info.objects.all()
+
+        
+        infos_serializer = InfoSerializer(infos, many=True)
+        return JsonResponse(infos_serializer.data, safe=False)
         
 
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -184,7 +243,6 @@ def announcement_detail(request, pk):
     elif request.method == 'PUT': 
         if announcement.inquiry_creator == request.user:
             announcement_data = JSONParser().parse(request)
-            print(announcement_data)
             Announcement.objects.filter(pk=pk).update(
                 announcement_is_visible = announcement_data['announcement_is_visible'],
                 announcement_auto_invisible_date = announcement_data['announcement_auto_invisible_date'],
@@ -199,6 +257,20 @@ def announcement_detail(request, pk):
             return JsonResponse({'message': 'Объявление удалено'}, status=status.HTTP_200_OK)
         return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
 
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([permissions.IsAuthenticated])
+def poll_detail(request, pk):
+    try: 
+        poll = Poll.objects.get(pk=pk)
+    except Poll.DoesNotExist: 
+        return JsonResponse({'message': 'Голосование не существует'}, status=status.HTTP_404_NOT_FOUND) 
+
+    if request.method == 'GET': 
+        poll_serializer = PollSerializer(poll)
+        data = JsonResponse(poll_serializer.data)
+        return data
+        
 
 @api_view(['GET', 'PUT'])
 @permission_classes([permissions.IsAuthenticated])
@@ -252,6 +324,19 @@ def todo_detail(request, pk):
                 inquiry_updated_at = timezone.now())
             return JsonResponse({'message': 'Статус заявки обновлён'}, status=status.HTTP_200_OK)
         return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+
+class FileUploadView(APIView):
+    parser_class = (FileUploadParser,)
+
+    def post(self, request, *args, **kwargs):
+
+      file_serializer = FileSerializer(data=request.data)
+
+      if file_serializer.is_valid():
+          file_serializer.save()
+          return JsonResponse(file_serializer.data, status=status.HTTP_201_CREATED)
+      else:
+          return JsonResponse(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # @api_view(['GET', 'POST', 'DELETE'])
