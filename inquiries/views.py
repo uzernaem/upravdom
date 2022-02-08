@@ -4,6 +4,8 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 from django.shortcuts import render
 from django.http.response import HttpResponse, JsonResponse
+
+from rest_framework.response import Response
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
@@ -11,7 +13,7 @@ from rest_framework.parsers import JSONParser, FileUploadParser
 from inquiries.serializers import UserSerializer, AnnouncementSerializer, ToDoSerializer, PollSerializer, NotificationSerializer, \
     CommentSerializer, VoteOptionSerializer, VoteSerializer, ProfileSerializer, ToDoCategorySerializer, InfoSerializer, ToDoListSerializer, AnnouncementListSerializer, \
     FileSerializer
-from inquiries.models import Announcement, ToDo, Poll, Notification, Info, Property, Comment, VoteOption, Vote, Profile, ToDoCategory, Inquiry
+from inquiries.models import Announcement, ToDo, Poll, Notification, Info, Property, Comment, VoteOption, Vote, Profile, ToDoCategory, Inquiry, File
 from django.contrib.auth.models import User
 
 # Create your views here.
@@ -36,12 +38,23 @@ def user_list(request):
         return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PUT'])
 @permission_classes([permissions.IsAuthenticated])
 def get_user(request):
     if request.method == 'GET':
         user = UserSerializer(request.user)
         return JsonResponse(user.data, safe=False)
+
+    elif request.method == 'PUT':
+        user_data = JSONParser().parse(request)
+        User.objects.filter(pk=request.user.pk).update(
+            first_name = user_data['first_name'],
+            last_name = user_data['last_name'],
+            email = user_data['email'])
+        Profile.objects.filter(pk=request.user.pk).update(phone_number = user_data['phone_number'])
+        return JsonResponse({'message': 'Профиль пользователя обновлён'}, status=status.HTTP_200_OK)
+        
+
 
 
 @api_view(['GET', 'POST', 'DELETE'])
@@ -57,8 +70,7 @@ def todo_list(request):
         title = request.GET.get('inquiry_title', None)
         if title is not None:
             todos = todos.filter(title__icontains=title)
-        
-        print(todos)
+
         todos_serializer = ToDoListSerializer(todos, many=True)
         return JsonResponse(todos_serializer.data, safe=False)
 
@@ -179,7 +191,6 @@ def poll_list(request):
         polls_data = JSONParser().parse(request)
         polls_data['inquiry_creator'] = request.user.id
         polls_serializer = PollSerializer(data=polls_data)
-        print(polls_data)
         if polls_serializer.is_valid():
             poll = polls_serializer.save()
             for option in polls_data['vote_options']:
@@ -327,16 +338,54 @@ def todo_detail(request, pk):
 
 class FileUploadView(APIView):
     parser_class = (FileUploadParser,)
-
+    
     def post(self, request, *args, **kwargs):
-
+      
       file_serializer = FileSerializer(data=request.data)
 
       if file_serializer.is_valid():
           file_serializer.save()
-          return JsonResponse(file_serializer.data, status=status.HTTP_201_CREATED)
+          return Response(file_serializer.data, status=status.HTTP_201_CREATED)
       else:
-          return JsonResponse(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+          return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([permissions.IsAuthenticated])
+def file_download(request, pk):
+    try: 
+        file = File.objects.get(pk=pk)
+    except Notification.DoesNotExist: 
+        return JsonResponse({'message': 'Файл не существует'}, status=status.HTTP_404_NOT_FOUND) 
+
+    if request.method == 'GET': 
+        file_serializer = FileSerializer(file)
+        data = JsonResponse(file_serializer.data)       
+        return data
+
+    elif request.method == 'PUT':
+        request.data['id'] = pk
+        file_serializer = FileSerializer(data=request.data)
+        if file_serializer.is_valid():
+            file = File.objects.get(pk=pk)
+            file.file.delete()
+            file.file = request.data['file']
+            file.save()
+            return JsonResponse({'message': 'Файл обновлён'}, status=status.HTTP_201_CREATED)
+        else:
+            return JsonResponse(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def file_upload(request):
+    if request.method == 'POST':
+        file_serializer = FileSerializer(data=request.data)
+        if file_serializer.is_valid():
+            file_serializer.save()
+            return JsonResponse(file_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return JsonResponse(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # @api_view(['GET', 'POST', 'DELETE'])

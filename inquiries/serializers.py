@@ -2,17 +2,22 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.fields import ReadOnlyField
 from rest_framework.relations import PrimaryKeyRelatedField
-from .models import Announcement, Attachment, ToDo, Poll, Notification, Property, Comment, ToDoCategory, VoteOption, Vote, Profile, Info
+from .models import Announcement, ToDo, Poll, Notification, Property, Comment, ToDoCategory, VoteOption, Vote, Profile, Info, File
 
+
+class FileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = File
+        fields = "__all__"
 
 class UserSerializer(serializers.ModelSerializer):
     is_manager = PrimaryKeyRelatedField(source='profile.is_manager', read_only=True)
     phone_number = PrimaryKeyRelatedField(source='profile.phone_number', read_only=True)
+    photo = FileSerializer(source='profile.photo', read_only=True)
 
     class Meta:
         model = User
-        fields = 'id', 'username', 'first_name', 'last_name', 'phone_number', 'is_manager'
-
+        fields = 'id', 'username', 'first_name', 'last_name', 'phone_number', 'is_manager', 'photo', 'email'
 
 class CommentSerializer(serializers.ModelSerializer):
 
@@ -238,8 +243,3 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = '__all__'
-
-class FileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Attachment
-        fields = "__all__"

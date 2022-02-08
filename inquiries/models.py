@@ -4,6 +4,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.forms import ModelForm
 from django.contrib.postgres.fields import ArrayField
+from django.utils.translation import gettext_lazy as _
 
 
 # Create your models here.
@@ -20,13 +21,13 @@ class Inquiry(models.Model):
     inquiry_updated_at = models.DateTimeField(auto_now_add=True, help_text='Дата обновления заявки')
 
 
-class Attachment(models.Model):
-    attachment_id = models.AutoField(primary_key=True, help_text='Идентификатор вложения', blank=False)
-    inquiry = models.ForeignKey('Inquiry', on_delete=models.CASCADE, blank=False, null=False, help_text='Заявка')
-    file = models.FileField(blank=False, null=False)
+# class Attachment(models.Model):
+#     attachment_id = models.AutoField(primary_key=True, help_text='Идентификатор вложения', blank=False)
+#     inquiry = models.ForeignKey('Inquiry', on_delete=models.CASCADE, blank=False, null=False, help_text='Заявка')
+#     file = models.FileField(blank=False, null=False)
 
-    def __str__(self):
-        return self.file.name
+#     def __str__(self):
+#         return self.file.name
 
 
 class InquiryForm(ModelForm):
@@ -112,10 +113,10 @@ class ToDo(Inquiry):
         self.todo_assigned_to = assignee
 
 
-class Image(models.Model):
-    """Изображение в заявке"""
-    inquiry = models.ForeignKey('Inquiry', on_delete=models.CASCADE, null=False, help_text='Заявка')
-    image = models.BinaryField(help_text='Изображение')
+# class Image(models.Model):
+#     """Изображение в заявке"""
+#     inquiry = models.ForeignKey('Inquiry', on_delete=models.CASCADE, null=False, help_text='Заявка')
+#     image = models.BinaryField(help_text='Изображение')
 
 
 class Poll(Inquiry):
@@ -183,26 +184,29 @@ class Notification(Inquiry):
 class Property(models.Model):
     """Модель помещения"""
     property_id = models.AutoField(primary_key=True, help_text='Идентификатор помещения', blank=False)
-    property_street_name = models.CharField(max_length=100, help_text='Улица', blank=False)
-    property_building_number = models.IntegerField(help_text='Номер дома', blank=False)
-    property_entrance_number = models.IntegerField(help_text='Номер подъезда', blank=False)
-    property_flat_number = models.IntegerField(help_text='Номер этажа', blank=False)
-    property_room_number = models.IntegerField(help_text='Номер помещения', blank=False)
-    property_area = models.IntegerField(help_text='Площадь помещения', blank=False)
+    property_street_name = models.CharField("Улица", max_length=100, blank=False)
+    property_building_number = models.IntegerField("Номер дома", blank=False)
+    property_entrance_number = models.IntegerField("Номер подъезда", blank=False)
+    property_flat_number = models.IntegerField("Номер этажа", blank=False)
+    property_room_number = models.IntegerField("Номер помещения", blank=False)
+    property_area = models.IntegerField("Площадь помещения", blank=False)
     PROPERTY_TYPES = (
         ('0', 'Жилое'),
         ('1', 'Коммерческое'),
     )
-    property_type = models.CharField(
+    property_type = models.CharField("Тип помещения",
         max_length=1,
         choices=PROPERTY_TYPES,
         default='0',
-        help_text='Тип помещения',
         blank=False
     )
 
     def __str__(self):
         return f'ул. {self.property_street_name}, д. {self.property_building_number}, кв. {self.property_room_number}'
+
+    class Meta:
+        verbose_name = _('помещение')
+        verbose_name_plural = _('помещения') 
 
 
 class Ownership(models.Model):
@@ -213,6 +217,9 @@ class Ownership(models.Model):
     def __str__(self):
         return f'{self.owner} - {self.property}'
 
+    class Meta:
+        verbose_name = _('владение недвижимостью')
+        verbose_name_plural = _('владение недвижимостью') 
 
 class Comment(models.Model):
     """Модель комментария в заявке на исполнение"""
@@ -245,23 +252,35 @@ class Vote(models.Model):
 class Profile(models.Model):
     """Профиль пользователя системы"""
     user = models.OneToOneField(User, primary_key=True, on_delete=models.CASCADE, blank=False, help_text='Пользователь')
-    phone_number = models.CharField(max_length=100, help_text='Номер телефона')
-    photo = models.BinaryField(null=True, help_text='Фотография пользователя')
-    is_manager = models.BooleanField(default=False, blank=False, help_text='Признак управляющего')
+    phone_number = models.CharField("Номер телефона", max_length=100)
+    is_manager = models.BooleanField("Признак управляющего", default=False, blank=False)
+    photo = models.OneToOneField('File', on_delete=models.CASCADE, blank=True, null=True, help_text='Фотография профиля')
 
     class Meta:
         ordering = ['is_manager', 'user']
+        verbose_name = _('Дополнительная информация профиля')
+        verbose_name_plural = _('Дополнительная информация профиля')  
 
-    # def __str__(self):
-    #     return {self.user.username}
+    def __str__(self):
+        return f'{self.user.first_name} {self.user.last_name}'
 
 
 class Info(models.Model):
-    info_title = models.CharField(max_length=256, help_text='Заголовок информационного сообщения', blank=False)
-    info_text = models.TextField(max_length=4096, help_text='Текст информационного сообщения', blank=False, null=False)
+    info_title = models.CharField("Заголовок", max_length=256, blank=False)
+    info_text = models.TextField("Текст", max_length=4096, blank=False, null=False)
 
     def __str__(self):
          return str(self.info_title)
+
+    class Meta:
+        verbose_name = _('информационное сообщение')
+        verbose_name_plural = _('информационные сообщения')
+
+
+class File(models.Model):
+    file = models.FileField(blank=False, null=False)
+    def __str__(self):
+        return self.file.name
 
 
 @receiver(post_save, sender=User)
@@ -269,3 +288,8 @@ def update_profile_signal(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
     instance.profile.save()
+
+def get_name(self):
+    return f'{self.first_name} {self.last_name}'
+
+User.add_to_class("__str__", get_name)
