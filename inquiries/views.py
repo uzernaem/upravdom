@@ -53,9 +53,6 @@ def get_user(request):
             email = user_data['email'])
         Profile.objects.filter(pk=request.user.pk).update(phone_number = user_data['phone_number'])
         return JsonResponse({'message': 'Профиль пользователя обновлён'}, status=status.HTTP_200_OK)
-        
-
-
 
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([permissions.IsAuthenticated])

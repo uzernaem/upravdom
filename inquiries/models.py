@@ -286,7 +286,8 @@ class File(models.Model):
 @receiver(post_save, sender=User)
 def update_profile_signal(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance)
+        file = File.objects.create()
+        Profile.objects.create(user=instance, photo=file)
     instance.profile.save()
 
 def get_name(self):
