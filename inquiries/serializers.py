@@ -209,6 +209,11 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = '__all__'
 
+    def to_representation(self, instance):
+            representation = super(NotificationSerializer, self).to_representation(instance)
+            representation['notification_recipient'] = UserSerializer(instance.notification_recipient).data
+            return representation
+
     def create(self, validated_data):
         notification = Notification(
             inquiry_title=validated_data['inquiry_title'],

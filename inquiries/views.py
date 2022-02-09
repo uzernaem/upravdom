@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from django.utils import timezone
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
@@ -204,7 +205,10 @@ def poll_list(request):
 def notification_list(request):
 
     if request.method == 'GET':
-        notifications = Notification.objects.filter(notification_recipient=request.user)
+        if (request.user.profile.is_manager):
+            notifications = Notification.objects.all()
+        else:
+            notifications = Notification.objects.filter(notification_recipient=request.user)
         title = request.GET.get('inquiry_title', None)
         if title is not None:
             notifications = notifications.filter(title__icontains=title)
@@ -299,6 +303,8 @@ def notification_detail(request, pk):
                 notification_is_read = True,
                 inquiry_updated_at = timezone.now())
             return JsonResponse({'message': 'Уведомление прочтено получателем'}, status=status.HTTP_200_OK)
+        elif request.user.profile.is_manager:
+            return JsonResponse({'message': 'Ok'}, status=status.HTTP_200_OK)
         return JsonResponse({'message': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
 
  
@@ -380,6 +386,21 @@ def file_upload(request):
         file_serializer = FileSerializer(data=request.data)
         if file_serializer.is_valid():
             file_serializer.save()
+            return JsonResponse(file_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return JsonResponse(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def photo_upload(request, pk):
+    if request.method == 'POST':
+        file_serializer = FileSerializer(data=request.data)
+        if file_serializer.is_valid():
+            file = file_serializer.save()
+            Profile.objects.filter(user=pk).update(
+                photo = file
+            )
             return JsonResponse(file_serializer.data, status=status.HTTP_201_CREATED)
         else:
             return JsonResponse(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
